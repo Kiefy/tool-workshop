@@ -27,7 +27,6 @@ using UnityEditor;
         SceneView.duringSceneGui += DuringSceneGUI;
 
         autoRepaintOnSceneChange = true;
-        Debug.Log("Enabled!");
     }
 
     // When Window is closed
@@ -35,11 +34,12 @@ using UnityEditor;
     {
         //Selection.selectionChanged -= Repaint;
         SceneView.duringSceneGui -= DuringSceneGUI;
-        Debug.Log("Disabled!");
     }
 
     private void DuringSceneGUI(SceneView sceneView)
     {
+        if (Event.current.type != EventType.Repaint) return;
+
         const float GRID_DRAW_EXTENT = 16f;
 
         int lineCount = Mathf.RoundToInt((GRID_DRAW_EXTENT * 2) / gridSize);
