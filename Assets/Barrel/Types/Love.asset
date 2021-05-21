@@ -12,6 +12,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f8705167f4626254ba242b2540ac1663, type: 3}
   m_Name: Love
   m_EditorClassIdentifier: 
-  radius: 8
+  radius: 3.64
   color: {r: 1, g: 0.4575472, b: 0.5612418, a: 1}
   damage: 10

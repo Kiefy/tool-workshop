@@ -12,6 +12,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f8705167f4626254ba242b2540ac1663, type: 3}
   m_Name: Health
   m_EditorClassIdentifier: 
-  radius: 5.18
+  radius: 3.14
   color: {r: 0.8113208, g: 0.8113208, b: 0.8113208, a: 1}
   damage: -50
