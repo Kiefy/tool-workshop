@@ -5,23 +5,38 @@ using UnityEditor;
 
 [ExecuteAlways] public class SnapperTool : EditorWindow
 {
+    public enum GridType
+    {
+        Cartesian,
+        Polar
+    }
+
     // Add a menu item to create and open the Window
     [MenuItem("Window/Snapper Tool")]
     public static void OpenSnapperWindow() => GetWindow<SnapperTool>("Snapper Tool");
+
+    public GridType gridType = GridType.Cartesian;
 
     // The spacing between grid lines
     [Range(0.01f, 10f)]
     public float gridSize = 1f;
 
+    [Range(4, 64)]
+    public int angularDivisions = 24;
+
     // Allows Undo on var changes
     private SerializedObject so;
     private SerializedProperty propGridSize;
+    private SerializedProperty propGridType;
+    private SerializedProperty propAngularDivisions;
 
     // When Window is instantiated
     private void OnEnable()
     {
         so = new SerializedObject(this);
         propGridSize = so.FindProperty("gridSize");
+        propGridType = so.FindProperty("gridType");
+        propAngularDivisions = so.FindProperty("angularDivisions");
 
         //Selection.selectionChanged += Repaint;
         SceneView.duringSceneGui += DuringSceneGUI;
@@ -42,7 +57,52 @@ using UnityEditor;
 
         const float GRID_DRAW_EXTENT = 16f;
 
-        int lineCount = Mathf.RoundToInt((GRID_DRAW_EXTENT * 2) / gridSize);
+        if (gridType == GridType.Cartesian)
+        {
+            DrawGridCartesian(GRID_DRAW_EXTENT);
+        }
+        else
+        {
+            DrawGridPolar(GRID_DRAW_EXTENT);
+        }
+
+        UnityEditorInternal.InternalEditorUtility.RepaintAllViews();
+    }
+
+    private void DrawGridPolar(float gridDrawExtent)
+    {
+        const float TAU = 6.28318530718f;
+
+        int ringCount = Mathf.RoundToInt(gridDrawExtent / gridSize);
+
+        float radiusOuter = (ringCount - 1f) * gridSize;
+
+        Handles.zTest = CompareFunction.LessEqual;
+        Handles.color = new Color(0.5f, 0.5f, 0.5f, 0.5f);
+
+        // Radial rings
+        for (int i = 1; i < ringCount; i++)
+        {
+            Handles.DrawWireDisc(Vector3.zero, Vector3.up, i * gridSize);
+        }
+
+
+        // Angular lines
+        for (int i = 0; i < angularDivisions; i++)
+        {
+            float t = i / (float) angularDivisions;
+            float angRad = t * TAU; // turns to radians
+            float x = Mathf.Cos(angRad);
+            float z = Mathf.Sin(angRad);
+            Vector3 dir = new Vector3(x, 0f, z);
+
+            Handles.DrawAAPolyLine(Vector2.zero, dir * radiusOuter);
+        }
+    }
+
+    private void DrawGridCartesian(float gridDrawExtent)
+    {
+        int lineCount = Mathf.RoundToInt((gridDrawExtent * 2) / gridSize);
 
         if (lineCount % 2 == 0) { lineCount++; }
 
@@ -67,14 +127,19 @@ using UnityEditor;
             p1 = new Vector3(zCoordEnd, 0f, xCoord);
             Handles.DrawAAPolyLine(p0, p1);
         }
-
-        UnityEditorInternal.InternalEditorUtility.RepaintAllViews();
     }
 
     private void OnGUI()
     {
         so.Update();
+        EditorGUILayout.PropertyField(propGridType);
         EditorGUILayout.PropertyField(propGridSize);
+        if (gridType == GridType.Polar)
+        {
+            EditorGUILayout.PropertyField(propAngularDivisions);
+            propAngularDivisions.intValue = Mathf.Max(4, propAngularDivisions.intValue);
+        }
+
         so.ApplyModifiedProperties();
 
         using (new EditorGUI.DisabledScope(Selection.gameObjects.Length == 0))
