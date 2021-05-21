@@ -12,6 +12,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f8705167f4626254ba242b2540ac1663, type: 3}
   m_Name: Water
   m_EditorClassIdentifier: 
-  radius: 8
+  radius: 2.82
   color: {r: 0.3254717, g: 0.8216039, b: 1, a: 1}
   damage: 10

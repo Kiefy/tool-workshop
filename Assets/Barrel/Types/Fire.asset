@@ -12,6 +12,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f8705167f4626254ba242b2540ac1663, type: 3}
   m_Name: Fire
   m_EditorClassIdentifier: 
-  radius: 4.68
+  radius: 2.41
   color: {r: 1, g: 0.5017744, b: 0.25943398, a: 1}
   damage: 10

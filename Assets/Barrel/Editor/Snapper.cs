@@ -4,10 +4,7 @@ using UnityEngine;
 public static class Snapper
 {
     [MenuItem("GameObject/Snap Selected Objects %&S", isValidateFunction: true)]
-    public static bool CanSnapTheThings()
-    {
-        return Selection.gameObjects.Length > 0;
-    }
+    public static bool CanSnapTheThings() { return Selection.gameObjects.Length > 0; }
 
     [MenuItem("GameObject/Snap Selected Objects %&S")]
     public static void SnapTheThings()

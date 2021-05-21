@@ -40,6 +40,11 @@ using UnityEditor;
         propGridType = so.FindProperty("gridType");
         propAngularDivisions = so.FindProperty("angularDivisions");
 
+        // Load saved config
+        gridSize = EditorPrefs.GetFloat("SNAPPER_TOOL_GRID_SIZE", 1f);
+        gridType = (GridType) EditorPrefs.GetInt("SNAPPER_TOOL_GRID_TYPE", 0);
+        angularDivisions = EditorPrefs.GetInt("SNAPPER_TOOL_ANGULAR_DIVISIONS", 24);
+
         //Selection.selectionChanged += Repaint;
         SceneView.duringSceneGui += DuringSceneGUI;
 
@@ -49,6 +54,11 @@ using UnityEditor;
     // When Window is closed
     private void OnDisable()
     {
+        // Save config
+        EditorPrefs.SetFloat("SNAPPER_TOOL_GRID_SIZE", gridSize);
+        EditorPrefs.SetInt("SNAPPER_TOOL_GRID_TYPE", (int) gridType);
+        EditorPrefs.SetInt("SNAPPER_TOOL_ANGULAR_DIVISIONS", angularDivisions);
+
         //Selection.selectionChanged -= Repaint;
         SceneView.duringSceneGui -= DuringSceneGUI;
     }
