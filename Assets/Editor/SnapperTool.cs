@@ -12,7 +12,7 @@ using UnityEditor;
     }
 
     // Add a menu item to create and open the Window
-    [MenuItem("Window/Snapper Tool")]
+    [MenuItem("Tools/Snapper Tool")]
     public static void OpenSnapperWindow() => GetWindow<SnapperTool>("Snapper Tool");
 
     public GridType gridType = GridType.Cartesian;
@@ -74,12 +74,12 @@ using UnityEditor;
             propAngularDivisions.intValue = Mathf.Max(4, propAngularDivisions.intValue);
         }
 
-        so.ApplyModifiedProperties();
-
         using (new EditorGUI.DisabledScope(Selection.gameObjects.Length == 0))
         {
             if (GUILayout.Button("Snap Selection")) SnapSelection();
         }
+
+        if (so.ApplyModifiedProperties()) { SceneView.RepaintAll(); }
     }
 
     private void DuringSceneGUI(SceneView sceneView)
@@ -96,8 +96,6 @@ using UnityEditor;
         {
             DrawGridPolar(GRID_DRAW_EXTENT);
         }
-
-        UnityEditorInternal.InternalEditorUtility.RepaintAllViews();
     }
 
     private void DrawGridPolar(float gridDrawExtent)
@@ -115,7 +113,6 @@ using UnityEditor;
             Handles.DrawWireDisc(Vector3.zero, Vector3.up, i * gridSize);
         }
 
-
         // Angular lines
         for (int i = 0; i < angularDivisions; i++)
         {
@@ -132,9 +129,7 @@ using UnityEditor;
     private void DrawGridCartesian(float gridDrawExtent)
     {
         int lineCount = Mathf.RoundToInt((gridDrawExtent * 2) / gridSize);
-
         if (lineCount % 2 == 0) { lineCount++; }
-
         int halfLineCount = lineCount / 2;
 
         for (int i = 0; i < lineCount; i++)
