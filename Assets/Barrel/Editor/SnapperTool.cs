@@ -30,6 +30,8 @@ using UnityEditor;
     private SerializedProperty propGridType;
     private SerializedProperty propAngularDivisions;
 
+    private const float TAU = 6.28318530718f;
+
     // When Window is instantiated
     private void OnEnable()
     {
@@ -49,6 +51,25 @@ using UnityEditor;
     {
         //Selection.selectionChanged -= Repaint;
         SceneView.duringSceneGui -= DuringSceneGUI;
+    }
+
+    private void OnGUI()
+    {
+        so.Update();
+        EditorGUILayout.PropertyField(propGridType);
+        EditorGUILayout.PropertyField(propGridSize);
+        if (gridType == GridType.Polar)
+        {
+            EditorGUILayout.PropertyField(propAngularDivisions);
+            propAngularDivisions.intValue = Mathf.Max(4, propAngularDivisions.intValue);
+        }
+
+        so.ApplyModifiedProperties();
+
+        using (new EditorGUI.DisabledScope(Selection.gameObjects.Length == 0))
+        {
+            if (GUILayout.Button("Snap Selection")) SnapSelection();
+        }
     }
 
     private void DuringSceneGUI(SceneView sceneView)
@@ -71,8 +92,6 @@ using UnityEditor;
 
     private void DrawGridPolar(float gridDrawExtent)
     {
-        const float TAU = 6.28318530718f;
-
         int ringCount = Mathf.RoundToInt(gridDrawExtent / gridSize);
 
         float radiusOuter = (ringCount - 1f) * gridSize;
@@ -129,35 +148,40 @@ using UnityEditor;
         }
     }
 
-    private void OnGUI()
-    {
-        so.Update();
-        EditorGUILayout.PropertyField(propGridType);
-        EditorGUILayout.PropertyField(propGridSize);
-        if (gridType == GridType.Polar)
-        {
-            EditorGUILayout.PropertyField(propAngularDivisions);
-            propAngularDivisions.intValue = Mathf.Max(4, propAngularDivisions.intValue);
-        }
-
-        so.ApplyModifiedProperties();
-
-        using (new EditorGUI.DisabledScope(Selection.gameObjects.Length == 0))
-        {
-            if (GUILayout.Button(
-                    "Snap Selection" /*,
-                    GUILayout.Width(100f)*/
-                )
-            ) SnapSelection();
-        }
-    }
-
     private void SnapSelection()
     {
         foreach (GameObject go in Selection.gameObjects)
         {
             Undo.RecordObject(go.transform, "Snap Selected GameObjects");
-            go.transform.position = go.transform.position.Round(gridSize);
+            go.transform.position = GetSnappedPosition(go.transform.position);
+            //;
+        }
+    }
+
+    private Vector3 GetSnappedPosition(Vector3 originalPosition)
+    {
+        switch (gridType)
+        {
+            case GridType.Cartesian:
+                return originalPosition.Round(gridSize);
+            case GridType.Polar:
+                Vector2 vec = new Vector2(originalPosition.x, originalPosition.z);
+
+                // Distance
+                float dist = vec.magnitude;
+                float distSnapped = dist.Round(gridSize);
+
+                // Angle
+                float angRad = Mathf.Atan2(vec.y, vec.x); // 0 to TAU
+                float angTurns = angRad / TAU; // 0 to 1
+                float angTurnsSnapped = angTurns.Round(1f / angularDivisions);
+                float angRadSnapped = angTurnsSnapped * TAU;
+
+                Vector2 dirSnapped = new Vector2(Mathf.Cos(angRadSnapped), Mathf.Sin(angRadSnapped));
+                Vector2 vecSnapped = dirSnapped * distSnapped;
+
+                return new Vector3(vecSnapped.x, originalPosition.y, vecSnapped.y);
+            default: return default;
         }
     }
 }
