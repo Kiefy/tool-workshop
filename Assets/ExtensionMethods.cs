@@ -16,4 +16,10 @@ public static class ExtensionMethods
 
     // Easy log - ie. "Hello".Log();
     public static void Log(this string s) { Debug.Log(s); }
+
+    public static float AtLeast(this float v, float min) { return Mathf.Max(v, min); }
+    public static int AtLeast(this int v, int min) { return Mathf.Max(v, min); }
+
+    public static float AtMost(this float v, float max) { return Mathf.Min(v, max); }
+    public static int AtMost(this int v, int max) { return Mathf.Min(v, max); }
 }
