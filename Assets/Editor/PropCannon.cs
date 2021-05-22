@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -17,13 +18,15 @@ public class PropCannon : EditorWindow
     public int spawnCount = 8;
 
     // Prop prefabs
-    public GameObject spawnPrefab = null;
+    public GameObject spawnPrefab;
+    public Material previewMaterial;
 
     // Set up Serialized Properties
     private SerializedObject serializedObject;
     private SerializedProperty pRadius;
     private SerializedProperty pSpawnCount;
     private SerializedProperty pSpawnPrefab;
+    private SerializedProperty pPreviewMaterial;
 
     // A place to store the points
     private Vector2[] randomPoints;
@@ -36,6 +39,7 @@ public class PropCannon : EditorWindow
         pRadius = serializedObject.FindProperty("radius");
         pSpawnCount = serializedObject.FindProperty("spawnCount");
         pSpawnPrefab = serializedObject.FindProperty("spawnPrefab");
+        pPreviewMaterial = serializedObject.FindProperty("previewMaterial");
 
         // Load config
         radius = EditorPrefs.GetFloat("PROP_CANNON_RADIUS", 2f);
@@ -65,6 +69,7 @@ public class PropCannon : EditorWindow
         EditorGUILayout.PropertyField(pSpawnCount);
         pSpawnCount.intValue = pSpawnCount.intValue.AtLeast(1);
         EditorGUILayout.PropertyField(pSpawnPrefab);
+        EditorGUILayout.PropertyField(pPreviewMaterial);
 
         // Repaint Scene View if changes detected
         if (serializedObject.ApplyModifiedProperties())
@@ -150,6 +155,8 @@ public class PropCannon : EditorWindow
                 return new Ray(rayOrigin, rayDirection);
             }
 
+            List<RaycastHit> hitPoints = new List<RaycastHit>();
+
             // Drawing points
             foreach (Vector2 point in randomPoints)
             {
@@ -159,10 +166,23 @@ public class PropCannon : EditorWindow
                 // If it hits something
                 if (Physics.Raycast(ptRay, out RaycastHit ptHit))
                 {
+                    hitPoints.Add(ptHit);
                     // Draw sphere and normal on surface
                     DrawGhostProp(ptHit.point);
                     Handles.DrawAAPolyLine(ptHit.point, ptHit.point + ptHit.normal);
+
+                    // Mesh
+                    Mesh mesh = spawnPrefab.GetComponent<MeshFilter>().sharedMesh;
+                    Material mat = spawnPrefab.GetComponent<MeshRenderer>().sharedMaterial;
+                    mat.SetPass(0);
+                    Graphics.DrawMeshNow(mesh, ptHit.point, Quaternion.LookRotation(ptHit.normal));
                 }
+            }
+
+            // Spawn props
+            if (holdingCtrl && Event.current.type == EventType.MouseDown && Event.current.button == 0)
+            {
+                TrySpawnProps(hitPoints);
             }
 
             // Draw Axis handle
@@ -200,12 +220,6 @@ public class PropCannon : EditorWindow
             // Handles.DrawWireDisc(hit.point, hit.normal, radius, 2f);
             // Handles.color = Color.white;
         }
-
-        // Spawn props
-        if (holdingCtrl && Event.current.type == EventType.MouseDown && Event.current.button == 0)
-        {
-            TrySpawnProps();
-        }
     }
 
     private void GenerateRandomPoints()
@@ -224,8 +238,24 @@ public class PropCannon : EditorWindow
         Handles.SphereHandleCap(-1, pos, qid, 0.1f, RP);
     }
 
-    private void TrySpawnProps()
+    private void TrySpawnProps(IEnumerable<RaycastHit> hits)
     {
         if (spawnPrefab == null) { return; }
+
+        foreach (RaycastHit hit in hits)
+        {
+            // Spawn prefab
+            GameObject prop = (GameObject) PrefabUtility.InstantiatePrefab(spawnPrefab);
+            Undo.RegisterCreatedObjectUndo(prop, "Spawn Props");
+            prop.transform.position = hit.point;
+
+            float randAngDeg = Random.value * 360;
+            Quaternion randRot = Quaternion.Euler(0f, 0f, randAngDeg);
+
+            Quaternion rot = Quaternion.LookRotation(hit.normal) * (randRot * Quaternion.Euler(90f, 0f, 0f));
+            prop.transform.rotation = rot;
+        }
+
+        GenerateRandomPoints();
     }
 }
