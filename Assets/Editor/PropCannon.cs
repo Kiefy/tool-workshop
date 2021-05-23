@@ -25,8 +25,9 @@ public class PropCannon : EditorWindow
     private SerializedObject serializedObject;
     private SerializedProperty pRadius;
     private SerializedProperty pSpawnCount;
+
     private SerializedProperty pSpawnPrefab;
-    private SerializedProperty pPreviewMaterial;
+    //private SerializedProperty pPreviewMaterial;
 
     // A place to store the points
     private Vector2[] randomPoints;
@@ -39,7 +40,7 @@ public class PropCannon : EditorWindow
         pRadius = serializedObject.FindProperty("radius");
         pSpawnCount = serializedObject.FindProperty("spawnCount");
         pSpawnPrefab = serializedObject.FindProperty("spawnPrefab");
-        pPreviewMaterial = serializedObject.FindProperty("previewMaterial");
+        //pPreviewMaterial = serializedObject.FindProperty("previewMaterial");
 
         // Load config
         radius = EditorPrefs.GetFloat("PROP_CANNON_RADIUS", 2f);
@@ -69,7 +70,7 @@ public class PropCannon : EditorWindow
         EditorGUILayout.PropertyField(pSpawnCount);
         pSpawnCount.intValue = pSpawnCount.intValue.AtLeast(1);
         EditorGUILayout.PropertyField(pSpawnPrefab);
-        EditorGUILayout.PropertyField(pPreviewMaterial);
+        //EditorGUILayout.PropertyField(pPreviewMaterial);
 
         // Repaint Scene View if changes detected
         if (serializedObject.ApplyModifiedProperties())
@@ -155,34 +156,42 @@ public class PropCannon : EditorWindow
                 return new Ray(rayOrigin, rayDirection);
             }
 
-            List<RaycastHit> hitPoints = new List<RaycastHit>();
+            List<Pose> hitPoses = new List<Pose>();
 
             // Drawing points
             foreach (Vector2 point in randomPoints)
             {
-                // Raycast to find a point on surface
-                Ray ptRay = GetTangentRay(point);
+                // Raycast to find a point on surface. If Ray misses, continue
+                if (!Physics.Raycast(GetTangentRay(point), out RaycastHit ptHit)) continue;
 
-                // If it hits something
-                if (Physics.Raycast(ptRay, out RaycastHit ptHit))
+                // Calculate rotation and assign to pose with position
+                float randAngDeg = Random.value * 360;
+                Quaternion randRot = Quaternion.Euler(0f, 0f, randAngDeg);
+                Quaternion lookNormal = Quaternion.LookRotation(ptHit.normal);
+                Quaternion rot = lookNormal * (randRot * Quaternion.Euler(90f, 0f, 0f));
+                Pose pose = new Pose(ptHit.point, rot);
+                hitPoses.Add(pose);
+
+                // Draw sphere and normal on surface
+                DrawGhostProp(ptHit.point);
+                Handles.DrawAAPolyLine(ptHit.point, ptHit.point + ptHit.normal);
+
+                // Mesh
+                Matrix4x4 poseMatrix = Matrix4x4.TRS(pose.position, pose.rotation, Vector3.one);
+                MeshFilter[] filters = spawnPrefab.GetComponentsInChildren<MeshFilter>();
+                foreach (MeshFilter filter in filters)
                 {
-                    hitPoints.Add(ptHit);
-                    // Draw sphere and normal on surface
-                    DrawGhostProp(ptHit.point);
-                    Handles.DrawAAPolyLine(ptHit.point, ptHit.point + ptHit.normal);
-
-                    // Mesh
-                    Mesh mesh = spawnPrefab.GetComponent<MeshFilter>().sharedMesh;
-                    Material mat = spawnPrefab.GetComponent<MeshRenderer>().sharedMaterial;
+                    Mesh mesh = filter.sharedMesh;
+                    Material mat = filter.GetComponent<MeshRenderer>().sharedMaterial;
                     mat.SetPass(0);
-                    Graphics.DrawMeshNow(mesh, ptHit.point, Quaternion.LookRotation(ptHit.normal));
+                    Graphics.DrawMeshNow(mesh, pose.position, pose.rotation);
                 }
             }
 
             // Spawn props
             if (holdingCtrl && Event.current.type == EventType.MouseDown && Event.current.button == 0)
             {
-                TrySpawnProps(hitPoints);
+                TrySpawnProps(hitPoses);
             }
 
             // Draw Axis handle
@@ -214,11 +223,6 @@ public class PropCannon : EditorWindow
             }
 
             Handles.DrawAAPolyLine(ringPoints);
-
-            // Draw Scene Handles
-            // Handles.color = Color.black;
-            // Handles.DrawWireDisc(hit.point, hit.normal, radius, 2f);
-            // Handles.color = Color.white;
         }
     }
 
@@ -238,22 +242,17 @@ public class PropCannon : EditorWindow
         Handles.SphereHandleCap(-1, pos, qid, 0.1f, RP);
     }
 
-    private void TrySpawnProps(IEnumerable<RaycastHit> hits)
+    private void TrySpawnProps(IEnumerable<Pose> poses)
     {
         if (spawnPrefab == null) { return; }
 
-        foreach (RaycastHit hit in hits)
+        foreach (Pose pose in poses)
         {
             // Spawn prefab
             GameObject prop = (GameObject) PrefabUtility.InstantiatePrefab(spawnPrefab);
             Undo.RegisterCreatedObjectUndo(prop, "Spawn Props");
-            prop.transform.position = hit.point;
-
-            float randAngDeg = Random.value * 360;
-            Quaternion randRot = Quaternion.Euler(0f, 0f, randAngDeg);
-
-            Quaternion rot = Quaternion.LookRotation(hit.normal) * (randRot * Quaternion.Euler(90f, 0f, 0f));
-            prop.transform.rotation = rot;
+            prop.transform.position = pose.position;
+            prop.transform.rotation = pose.rotation;
         }
 
         GenerateRandomPoints();
