@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -43,6 +44,7 @@ public class PropCannon : EditorWindow
     }
 
     private RawPlacement[] rawPlacements;
+    private GameObject[] prefabs;
 
     // When Window is opened
     private void OnEnable()
@@ -60,6 +62,11 @@ public class PropCannon : EditorWindow
 
         GenerateRandomPoints();
         SceneView.duringSceneGui += DuringSceneViewGUI;
+
+        // Load Prefabs
+        string[] guids = AssetDatabase.FindAssets("t:prefab", new[] {"Assets/Prefabs"});
+        IEnumerable<string> paths = guids.Select(AssetDatabase.GUIDToAssetPath);
+        prefabs = paths.Select(AssetDatabase.LoadAssetAtPath<GameObject>).ToArray();
     }
 
     // When the window is closed
@@ -104,6 +111,26 @@ public class PropCannon : EditorWindow
 
     private void DuringSceneViewGUI(SceneView sceneView)
     {
+        Handles.BeginGUI();
+
+        Rect rect = new Rect(8f, 8f, 64f, 64f);
+
+        foreach (GameObject prefab in prefabs)
+        {
+            //Texture2D icon = AssetPreview.GetAssetPreview(prefab) as Texture2D;
+            if (GUI.Button(rect, AssetPreview.GetAssetPreview(prefab)))
+            {
+                serializedObject.Update();
+                pSpawnPrefab.objectReferenceValue = spawnPrefab = prefab;
+                serializedObject.ApplyModifiedProperties();
+                Repaint();
+            }
+
+            rect.y += rect.height + 2f;
+        }
+
+        Handles.EndGUI();
+
         // Update Scene View when moving mouse
         if (Event.current.type == EventType.MouseMove) { SceneView.RepaintAll(); }
 
