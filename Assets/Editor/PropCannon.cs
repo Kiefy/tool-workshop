@@ -4,6 +4,19 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering;
 
+// A place to store random placement data
+public struct RawPlacement
+{
+    public Vector2 Point2D;
+    public float AngleDegrees;
+
+    public void Randomize()
+    {
+        Point2D = Random.insideUnitCircle;
+        AngleDegrees = Random.value * 360;
+    }
+}
+
 public class PropCannon : EditorWindow
 {
     // Create menu item
@@ -18,8 +31,6 @@ public class PropCannon : EditorWindow
     [Range(1f, 256f)]
     public int spawnCount = 8;
 
-    // Prop prefab
-    public GameObject spawnPrefab;
     //public Material previewMaterial;
 
     // Set up Serialized Properties
@@ -27,33 +38,23 @@ public class PropCannon : EditorWindow
     private SerializedProperty pRadius;
     private SerializedProperty pSpawnCount;
 
-    private SerializedProperty pSpawnPrefab;
+    //private SerializedProperty pSpawnPrefab;
     //private SerializedProperty pPreviewMaterial;
-
-    // A place to store random placement data
-    private struct RawPlacement
-    {
-        public Vector2 Point2D;
-        public float AngleDegrees;
-
-        public void Randomize()
-        {
-            Point2D = Random.insideUnitCircle;
-            AngleDegrees = Random.value * 360;
-        }
-    }
 
     private RawPlacement[] rawPlacements;
     private GameObject[] prefabs;
+    public List<GameObject> spawnPrefabs;
 
-    // When Window is opened
+    [SerializeField]
+    public bool[] propSelectionStates;
+
     private void OnEnable()
     {
         // Assign Serialized Properties
         serializedObject = new SerializedObject(this);
         pRadius = serializedObject.FindProperty("radius");
         pSpawnCount = serializedObject.FindProperty("spawnCount");
-        pSpawnPrefab = serializedObject.FindProperty("spawnPrefab");
+        //pSpawnPrefab = serializedObject.FindProperty("spawnPrefab");
         //pPreviewMaterial = serializedObject.FindProperty("previewMaterial");
 
         // Load config
@@ -67,6 +68,10 @@ public class PropCannon : EditorWindow
         string[] guids = AssetDatabase.FindAssets("t:prefab", new[] {"Assets/Prefabs"});
         IEnumerable<string> paths = guids.Select(AssetDatabase.GUIDToAssetPath);
         prefabs = paths.Select(AssetDatabase.LoadAssetAtPath<GameObject>).ToArray();
+        if (propSelectionStates == null || propSelectionStates.Length != prefabs.Length)
+        {
+            propSelectionStates = new bool[prefabs.Length];
+        }
     }
 
     // When the window is closed
@@ -91,7 +96,7 @@ public class PropCannon : EditorWindow
         pRadius.floatValue = pRadius.floatValue.AtLeast(0.1f);
         EditorGUILayout.PropertyField(pSpawnCount);
         pSpawnCount.intValue = pSpawnCount.intValue.AtLeast(1);
-        EditorGUILayout.PropertyField(pSpawnPrefab);
+        //EditorGUILayout.PropertyField(pSpawnPrefab);
         //EditorGUILayout.PropertyField(pPreviewMaterial);
 
         // Repaint if changes detected
@@ -114,18 +119,32 @@ public class PropCannon : EditorWindow
         Handles.BeginGUI();
 
         Rect rect = new Rect(8f, 8f, 64f, 64f);
-
-        foreach (GameObject prefab in prefabs)
+        for (int i = 0; i < prefabs.Length; i++)
         {
-            //Texture2D icon = AssetPreview.GetAssetPreview(prefab) as Texture2D;
-            if (GUI.Button(rect, AssetPreview.GetAssetPreview(prefab)))
+            GameObject prefab = prefabs[i];
+            Texture2D icon = AssetPreview.GetAssetPreview(prefab);
+
+            EditorGUI.BeginChangeCheck();
+            propSelectionStates[i] = GUI.Toggle(rect, propSelectionStates[i], new GUIContent(icon));
+            if (EditorGUI.EndChangeCheck())
             {
-                serializedObject.Update();
-                pSpawnPrefab.objectReferenceValue = spawnPrefab = prefab;
-                serializedObject.ApplyModifiedProperties();
-                Repaint();
+                // Update selection list
+                spawnPrefabs.Clear();
+                for (int j = 0; j < prefabs.Length; j++)
+                {
+                    if (propSelectionStates[i])
+                    {
+                        spawnPrefabs.Add(prefabs[i]);
+                    }
+                }
             }
 
+
+            serializedObject.Update();
+            //spawnPrefabs[i] = prefab;
+            //pSpawnPrefab.objectReferenceValue = spawnPrefabs[i]=prefabs[i];
+            serializedObject.ApplyModifiedProperties();
+            Repaint();
             rect.y += rect.height + 2f;
         }
 
@@ -171,13 +190,12 @@ public class PropCannon : EditorWindow
             }
         }
 
-        RenderProps(sceneView, isHoldingCtrl);
+        RenderProps(sceneView.camera);
     }
 
-    private void RenderProps(SceneView sceneView, bool isHoldingCtrl)
+    private void RenderProps(Camera cam)
     {
-        // Get the Camera Transform
-        Vector3 sceneViewCameraTransformUp = sceneView.camera.transform.up;
+        Vector3 cameraUp = cam.transform.up;
 
         // Draw Gizmo's and Ghost Props
         Ray mouseRay = HandleUtility.GUIPointToWorldRay(Event.current.mousePosition);
@@ -188,10 +206,8 @@ public class PropCannon : EditorWindow
             foreach (RawPlacement rawPlacement in rawPlacements)
             {
                 // Raycast to find a point on surface. If Ray misses, continue
-                if (!Physics.Raycast(
-                    GetTangentRay(mouseRaycastHit, sceneViewCameraTransformUp, rawPlacement.Point2D),
-                    out RaycastHit placementHit
-                )) continue;
+                Ray tangentRay = GetTangentRay(mouseRaycastHit, cameraUp, rawPlacement.Point2D);
+                if (!Physics.Raycast(tangentRay, out RaycastHit placementHit)) continue;
 
                 // Calculate rotation and assign to pose with position
                 Quaternion randomRotationZ = Quaternion.Euler(0f, 0f, rawPlacement.AngleDegrees);
@@ -202,30 +218,60 @@ public class PropCannon : EditorWindow
                 Pose correctedPose = new Pose(placementHit.point, correctedRotation);
                 correctedPlacements.Add(correctedPose);
 
+                //DrawSpawnPreviews(correctedPlacements, cam);
                 DrawPropMarker(placementHit);
                 DrawPropPreview(correctedPose);
             }
 
-            DrawAxisHandle(mouseRaycastHit, sceneViewCameraTransformUp);
-            DrawLiveCircle(mouseRaycastHit, sceneViewCameraTransformUp);
+            if (Event.current.type == EventType.Repaint)
+            {
+                DrawAxisHandle(mouseRaycastHit, cameraUp);
+                DrawLiveCircle(mouseRaycastHit, cameraUp);
+            }
 
             // Spawn props
-            if (isHoldingCtrl && Event.current.type == EventType.MouseDown && Event.current.button == 0)
+            bool ctrl = (Event.current.modifiers & EventModifiers.Control) != 0;
+            bool lmb = Event.current.type == EventType.MouseDown && Event.current.button == 0;
+            if (ctrl && lmb) { PlaceProps(correctedPlacements); }
+        }
+    }
+
+    void DrawSpawnPreviews(List<Pose> spawnPoses, Camera cam)
+    {
+        foreach (Pose pose in spawnPoses)
+        {
+            if (spawnPrefabs != null && spawnPrefabs.Count > 0)
             {
-                PlaceProps(correctedPlacements);
+                // draw preview of all meshes in the prefab
+                Matrix4x4 poseToWorld = Matrix4x4.TRS(pose.position, pose.rotation, Vector3.one);
+                //DrawPrefab(spawnPrefabs[0], poseToWorld, cam);
+            }
+            else
+            {
+                // prefab missing, draw sphere and normal on surface instead
+                Handles.SphereHandleCap(-1, pose.position, Quaternion.identity, 0.1f, EventType.Repaint);
+                Handles.DrawAAPolyLine(pose.position, pose.position + pose.up);
             }
         }
     }
 
     private void DrawPropPreview(Pose correctedPlacement)
     {
-        if (spawnPrefab == null) return;
+        if (spawnPrefabs == null) return;
         Matrix4x4 targetWorldMatrix = Matrix4x4.TRS(
             correctedPlacement.position,
             correctedPlacement.rotation,
             Vector3.one
         );
-        MeshFilter[] filters = spawnPrefab.GetComponentsInChildren<MeshFilter>();
+
+        List<MeshFilter> filters = new List<MeshFilter>();
+        //MeshFilter[] filters = { };
+
+        foreach (GameObject t in spawnPrefabs)
+        {
+            filters.AddRange(t.GetComponentsInChildren<MeshFilter>());
+        }
+
         foreach (MeshFilter filter in filters)
         {
             Matrix4x4 propWorldMatrix = filter.transform.localToWorldMatrix;
@@ -282,17 +328,17 @@ public class PropCannon : EditorWindow
         Handles.DrawAAPolyLine(ringPoints);
     }
 
-    private Ray GetTangentRay(RaycastHit mouseHit, Vector3 camTfUp, Vector2 tangentSpacePos)
+    private Ray GetTangentRay(RaycastHit mouseHit, Vector3 cameraUp, Vector2 tangentSpacePos)
     {
-        Vector3 mysteryMath = Vector3.Cross(mouseHit.normal, camTfUp).normalized * tangentSpacePos.x +
-                              Vector3.Cross(
-                                  mouseHit.normal,
-                                  Vector3.Cross(mouseHit.normal, camTfUp).normalized
-                              ) *
-                              tangentSpacePos.y;
+        Vector3 hitNormal = mouseHit.normal;
+        Vector3 hitTangent = Vector3.Cross(hitNormal, cameraUp).normalized;
+        Vector3 hitBitangent = Vector3.Cross(hitNormal, hitTangent);
+        Vector3 mysteryMath = hitTangent * tangentSpacePos.x + hitBitangent * tangentSpacePos.y;
+
         Vector3 rayOrigin = mouseHit.point + mysteryMath * radius;
-        rayOrigin += mouseHit.normal * 2;
-        Vector3 rayDirection = -mouseHit.normal;
+        rayOrigin += hitNormal * 2;
+
+        Vector3 rayDirection = -hitNormal;
         return new Ray(rayOrigin, rayDirection);
     }
 
@@ -313,17 +359,34 @@ public class PropCannon : EditorWindow
 
     private void PlaceProps(IEnumerable<Pose> poses)
     {
-        if (spawnPrefab == null) { return; }
+        if (spawnPrefabs == null) { return; }
 
         foreach (Pose pose in poses)
         {
             // Spawn prefab
-            GameObject prop = (GameObject) PrefabUtility.InstantiatePrefab(spawnPrefab);
+            GameObject prop = (GameObject) PrefabUtility.InstantiatePrefab(spawnPrefabs[0]);
             Undo.RegisterCreatedObjectUndo(prop, "Spawn Props");
             prop.transform.position = pose.position;
             prop.transform.rotation = pose.rotation;
         }
 
         GenerateRandomPoints();
+    }
+
+    bool TryRaycastFromCamera(Vector2 cameraUp, out Matrix4x4 tangentToWorldMatrix)
+    {
+        Ray ray = HandleUtility.GUIPointToWorldRay(Event.current.mousePosition);
+        if (Physics.Raycast(ray, out RaycastHit hit))
+        {
+            // Setting up tangent space
+            Vector3 hitNormal = hit.normal;
+            Vector3 hitTangent = Vector3.Cross(hitNormal, cameraUp).normalized;
+            Vector3 hitBitangent = Vector3.Cross(hitNormal, hitTangent);
+            tangentToWorldMatrix = Matrix4x4.TRS(hit.point, Quaternion.LookRotation(hitNormal, hitBitangent), Vector3.one);
+            return true;
+        }
+
+        tangentToWorldMatrix = default;
+        return false;
     }
 }
