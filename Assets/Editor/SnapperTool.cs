@@ -3,7 +3,8 @@ using UnityEngine.Rendering;
 #if UNITY_EDITOR
 using UnityEditor;
 
-[ExecuteAlways] public class SnapperTool : EditorWindow
+[ExecuteAlways]
+public class SnapperTool : EditorWindow
 {
     public enum GridType
     {
@@ -12,17 +13,14 @@ using UnityEditor;
     }
 
     // Add a menu item to create and open the Window
-    [MenuItem("Tools/Snapper Tool")]
-    public static void OpenSnapperWindow() => GetWindow<SnapperTool>("Snapper Tool");
+    [MenuItem("Tools/Snapper Tool")] public static void OpenSnapperWindow() => GetWindow<SnapperTool>("Snapper Tool");
 
     public GridType gridType = GridType.Cartesian;
 
     // The spacing between grid lines
-    [Range(0.01f, 10f)]
-    public float gridSize = 1f;
+    [Range(0.01f, 10f)] public float gridSize = 1f;
 
-    [Range(4, 64)]
-    public int angularDivisions = 24;
+    [Range(4, 64)] public int angularDivisions = 24;
 
     // Allows Undo on var changes
     private SerializedObject so;
@@ -79,7 +77,10 @@ using UnityEditor;
             if (GUILayout.Button("Snap Selection")) SnapSelection();
         }
 
-        if (so.ApplyModifiedProperties()) { SceneView.RepaintAll(); }
+        if (so.ApplyModifiedProperties())
+        {
+            SceneView.RepaintAll();
+        }
     }
 
     private void DuringSceneGUI(SceneView sceneView)
@@ -129,7 +130,11 @@ using UnityEditor;
     private void DrawGridCartesian(float gridDrawExtent)
     {
         int lineCount = Mathf.RoundToInt((gridDrawExtent * 2) / gridSize);
-        if (lineCount % 2 == 0) { lineCount++; }
+        if (lineCount % 2 == 0)
+        {
+            lineCount++;
+        }
+
         int halfLineCount = lineCount / 2;
 
         for (int i = 0; i < lineCount; i++)

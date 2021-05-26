@@ -7,7 +7,7 @@ public class Barrel : MonoBehaviour
     [FormerlySerializedAs("Type")] public BarrelType type;
 
     private MaterialPropertyBlock mpb;
-    private MaterialPropertyBlock MaterialBlock => mpb ??= new MaterialPropertyBlock();
+    private MaterialPropertyBlock materialBlock => mpb ??= new MaterialPropertyBlock();
     private static readonly int ShaderColor = Shader.PropertyToID("_Color");
 
     public void TryApplyColor()
@@ -17,8 +17,8 @@ public class Barrel : MonoBehaviour
         if (type != null) color = type.color;
 
         MeshRenderer meshRenderer = GetComponent<MeshRenderer>();
-        MaterialBlock.SetColor(ShaderColor, color);
-        meshRenderer.SetPropertyBlock(MaterialBlock);
+        materialBlock.SetColor(ShaderColor, color);
+        meshRenderer.SetPropertyBlock(materialBlock);
     }
 
     private void OnEnable() => BarrelManager.AllTheBarrels.Add(this);
