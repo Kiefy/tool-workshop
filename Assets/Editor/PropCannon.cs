@@ -72,7 +72,7 @@ public class PropCannon : EditorWindow
 
     private SpawnData[] spawnDataPoints;
     private GameObject[] prefabs;
-    public List<GameObject> spawnPrefabs;
+    public List<GameObject> spawnPrefabs = new List<GameObject>();
 
     private Material materialInvalid;
 
