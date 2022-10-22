@@ -44,9 +44,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a2f0071d3c42f46468c3e996dd980547, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  height: 6.6
-  lineWidth: 2
-  handleSize: 2
+  height: 6.83
+  lineWidth: 2.07
+  handleSize: 2.44
 --- !u!1 &4209660437496971355
 GameObject:
   m_ObjectHideFlags: 0

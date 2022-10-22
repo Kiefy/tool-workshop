@@ -12,6 +12,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f8705167f4626254ba242b2540ac1663, type: 3}
   m_Name: Acid
   m_EditorClassIdentifier: 
-  radius: 3.09
+  radius: 3.3
   color: {r: 1, g: 0.9582453, b: 0.36320752, a: 1}
   damage: 10
